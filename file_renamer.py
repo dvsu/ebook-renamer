@@ -141,6 +141,7 @@ class FileRenamer(FileCheck, FileNames):
     def __init__(self, reference_path:str, file_path:str=''):
         FileCheck.__init__(self, reference_path, file_path)
         FileNames.__init__(self, reference_path, file_path)
+        self.omitted_words = ["the"]
         self.run()
 
 
@@ -158,6 +159,13 @@ class FileRenamer(FileCheck, FileNames):
             if (keyword == renamed_raw_name[index:index+nchar]):
                 index += nchar
                 matched_words += 1
+            
+            # There is also a case when the expected name may contain one of the omitted words, e.g. "the"
+            # when the raw name may not. In this case, it is assumed the word is not an important keyword,
+            # and continue to check the next keywords.
+            elif keyword in self.omitted_words:
+                continue
+
             else:
                 # renamed_raw_name may be shortened from its full title. In this case, this if-else statement could mistakenly flag it
                 # as "mismatched keyword", in fact, there is no more word to check at the end of renamed_raw_name, i.e. indicating
@@ -172,12 +180,12 @@ class FileRenamer(FileCheck, FileNames):
         # it indicates the keywords are 100% match. Thus, return True
         return True
 
-    def rename_file(self, old_name:str, new_name:str, file_format:str) -> None:
+    def rename_file(self, check_name:str, old_name:str, new_name:str, file_format:str) -> None:
         
         try:
             base_path = f"{self.file_path}{self.delim_char}"
             os.rename(f"{base_path}{old_name}.{file_format}", f"{base_path}{new_name}.{file_format}")
-            self.renamed_raw_file_check_flag[f"{old_name}.{file_format}"] = True
+            self.renamed_raw_file_check_flag[f"{check_name}.{file_format}"] = True
             print(f"Renamed file from '{old_name}.{file_format}' to '{new_name}.{file_format}'")
 
         except FileExistsError:
@@ -197,7 +205,7 @@ class FileRenamer(FileCheck, FileNames):
                 renamed_raw_name, file_format = renamed_raw_file.split('.')
                 original_raw_name, _ = original_raw_file.split('.')
                 if self.keyword_check(keywords=keywords, renamed_raw_name=renamed_raw_name):
-                    self.rename_file(old_name=original_raw_name, new_name=document, file_format=file_format)
+                    self.rename_file(check_name=renamed_raw_name, old_name=original_raw_name, new_name=document, file_format=file_format)
                 
                 else:
                     print(f"{'-'*3} Skipped. Renamed check flag:{self.renamed_raw_file_check_flag[renamed_raw_file]}")
